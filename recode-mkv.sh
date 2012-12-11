@@ -1,4 +1,6 @@
 #!/bin/bash
+#
+#
 SOURCE=$1
 BASENAME=$(basename "${SOURCE}" .mkv) 
 DIRNAME=$(echo ${SOURCE} | awk -F/ '{print $(NF-3) "/" $(NF-2) "/" $(NF-1) }')
