@@ -1,5 +1,7 @@
 #!/bin/bash
 #
+# This transcode settings works for my Samsung Smart TV and also include
+# the spanish and english SRT inside the MKV, AAC is used for audio
 #
 SOURCE=$1
 BASENAME=$(basename "${SOURCE}" .mkv) 
