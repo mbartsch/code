@@ -1,4 +1,8 @@
 #!/usr/bin/perl
+# This is a nagios plugin to check oracle asm disk space availability
+# licensed under GPLv2
+# Marcelo Bartsch <spam-mb+github@bartsch.cl>
+# 
 use warnings;
 use strict;
 use DBI;
