@@ -5,11 +5,6 @@ use DBI;
 use Nagios::Plugin;
 use Nagios::Plugin::Getopt;
 use Data::Dumper;
-my $dbname   = "+ASM1";
-my $host     = "oracl1";
-my $port     = "1521";
-my $username = "sys";
-my $password = "asm4dba";
 my $lines = 0;
 my $totalinserts = 0;
 my $dbi_errorstr;
@@ -27,19 +22,58 @@ my $ng = Nagios::Plugin::Getopt->new(
          );
 $ng->arg(
            spec => 'critical|c=i',
-           help => q(Exit with CRITICAL status if fewer than INTEGER foobars are free),
+           help => q(Exit with CRITICAL status if used space is above 85%),
            required => 1,
-           default => 10,
+           default => 85,
          );
 
 $ng->arg(
            spec => 'warning|w=i',
-           help => q(Exit with WARNING status if fewer than INTEGER foobars are free),
+           help => q(Exit with WARNING status if used space is above 70%),
            required => 1,
-           default => 10,
+           default => 70,
          );
 
+$ng->arg(
+           spec => 'asminstance|a=s',
+           help => q(ASM Instance name),
+           required => 1,
+           default => '+ASM',
+         );
+
+$ng->arg(
+           spec => 'host|H=s',
+           help => q(HOSTNAME Instance name),
+           required => 1,
+           default => 'localhost',
+         );
+$ng->arg(
+           spec => 'port|p=i',
+           help => q(listener port number Instance name),
+           required => 1,
+           default => 1521
+         );
+
+$ng->arg(
+           spec => 'username|u=s',
+           help => q(ASM DBA username),
+           required => 1,
+           default => 'sys'
+         );
+
+$ng->arg(
+           spec => 'password|P=s',
+           help => q(ASM DBA password),
+           required => 1,
+           default => 'oracle'
+         );
 $ng->getopts;
+
+my $dbname = $ng->get('asminstance');
+my $host = $ng->get('host');
+my $port = $ng->get('port');
+my $username = $ng->get('username');
+my $password = $ng->get('password');
 
 eval {
 	$dbh = DBI->connect("dbi:Oracle:host=$host;sid=$dbname;port=$port",
