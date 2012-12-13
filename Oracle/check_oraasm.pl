@@ -93,15 +93,15 @@ while ($hashref = $sth->fetchrow_hashref()){
         my $used_space=$hashref->{TOTAL_MB}-$hashref->{FREE_MB};
 	my $pct_used=$used_space/$hashref->{TOTAL_MB}*100;
 	if ($pct_used > $ng->get('critical')){
-		print "CRIT: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}\n";
+		print "CRIT: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}  ";
 		$critical = 1;
 	}
 	if ($pct_used > $ng->get('warning')){
-		print "WARN: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}\n";
+		print "WARN: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}  ";
 		$warning = 1;
 	}
 	$np->add_perfdata(
-		label => "$hashref->{'NAME'}",
+		label => "$hashref->{'NAME'} Used Space",
 		value => $hashref->{TOTAL_MB}-$hashref->{FREE_MB},
 		warning   => $ng->get('warning'),
 		critical   => $ng->get('critical'),
@@ -111,8 +111,10 @@ while ($hashref = $sth->fetchrow_hashref()){
 }
 $dbh->disconnect();
 if ($critical) {
+	print "\n";
 	$np->nagios_exit ( CRITICAL , "ASM DiskGroup under " . $ng->get('critical') . "  % of free space" );
 } elsif ($warning) {
+	print "\n";
 	$np->nagios_exit ( WARNING , "ASM DiskGroup under " . $ng->get('warning') . " % of free space" );
 } else {
 	$np->nagios_exit ( OK , "ASM DiskGroup OK");
