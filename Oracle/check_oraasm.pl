@@ -28,14 +28,14 @@ $ng->arg(
            spec => 'critical|c=i',
            help => q(Exit with CRITICAL status if used space is above 85%),
            required => 1,
-           default => 85,
+           default => 90,
          );
 
 $ng->arg(
            spec => 'warning|w=i',
            help => q(Exit with WARNING status if used space is above 70%),
            required => 1,
-           default => 70,
+           default => 80,
          );
 
 $ng->arg(
@@ -97,11 +97,11 @@ while ($hashref = $sth->fetchrow_hashref()){
         my $used_space=$hashref->{TOTAL_MB}-$hashref->{FREE_MB};
 	my $pct_used=$used_space/$hashref->{TOTAL_MB}*100;
 	if ($pct_used > $ng->get('critical')){
-		print "CRIT: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}  ";
+		print "CRIT: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB} MB ( $pct_used % Used )";
 		$critical = 1;
 	}
 	if ($pct_used > $ng->get('warning')){
-		print "WARN: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB}  ";
+		print "WARN: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB} MB ( $pct_used % Used )";
 		$warning = 1;
 	}
 	$np->add_perfdata(
