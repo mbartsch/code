@@ -96,6 +96,7 @@ $sth->execute();
 while ($hashref = $sth->fetchrow_hashref()){
         my $used_space=$hashref->{TOTAL_MB}-$hashref->{FREE_MB};
 	my $pct_used=$used_space/$hashref->{TOTAL_MB}*100;
+        $pct_used = sprintf("%.2f",$pct_used);
 	if ($pct_used > $ng->get('critical')){
 		print "CRIT: $hashref->{'NAME'} has $hashref->{FREE_MB} MB Free of $hashref->{TOTAL_MB} MB ( $pct_used % Used )";
 		$critical = 1;
