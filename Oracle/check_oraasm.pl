@@ -106,11 +106,11 @@ while ($hashref = $sth->fetchrow_hashref()){
 		$warning = 1;
 	}
 	$np->add_perfdata(
-		label => "$hashref->{'NAME'} Used Space",
-		value => $hashref->{TOTAL_MB}-$hashref->{FREE_MB},
+		label => "$hashref->{'NAME'} % Used Space",
+		value => $pct_used
 		warning   => $ng->get('warning'),
 		critical   => $ng->get('critical'),
-                max => $hashref->{TOTAL_MB},
+                max => 100,
                 min => 0
 	);
 }
