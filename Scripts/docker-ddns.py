@@ -1,49 +1,40 @@
 #!/usr/bin/env python3
+import logging
 import docker
 import json
 import sys
 import dns
+import dns.tsigkeyring
+import dns.update
+import dns.query
 
 
+logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s', level=logging.DEBUG)
+
+configfile = 'dockerddns.json'
 tsigfile = 'secrets.json'
-client = docker.Client()
 tsighandle = open(tsigfile, mode='r')
+logging.debug('Loading DNS Key Data')
 keyring = dns.tsigkeyring.from_text(json.load(tsighandle))
+
+logging.debug('Loading Config Informaiton')
+configfh = open(configfile, mode='r')
+config = json.load(configfh)
 tsighandle.close()
+configfh.close()
+client = docker.Client()
 
 
 def startup():
     containers = []
-
+    logging.debug('Check running containers and update DDNS')
     for container in client.containers():
-        container_id = container["Id"]
-        inspect = client.inspect_container(container_id)
-        container_hostname = inspect["Config"]["Hostname"]
-        container_name = inspect["Name"].split('/', 1)[1]
-        networkmode = str(inspect["HostConfig"]["NetworkMode"])
-        # and (str(networkmode) != 'default')):
-        if ((str(networkmode) != 'host') and 'container:' not in networkmode):
-            if (str(networkmode) != 'default'):
-                container_ip = container["NetworkSettings"][
-                    "Networks"][networkmode]["IPAddress"]
-            else:
-                container_ip = container["NetworkSettings"][
-                    "Networks"]["bridge"]["IPAddress"]
-        event_data = {container['Id']: {
-            "status": "running",
-            "name": container_name,
-            "Hostname": container_hostname,
-            "from": container['Image'],
-            "time": container['Created'],
-            "ipAddr": container_ip}}
-
-        containers.append(event_data)
-    return json.dumps(containers)
+        containerinfo = container_info(container["Id"])
+        dockerddns('start',containerinfo)
 
 
 def container_info(containerId):
     container = {}
-    print(containerId)
     inspect = client.inspect_container(containerId)
     networkmode = str(inspect["HostConfig"]["NetworkMode"])
     container['name'] = inspect["Name"].split('/', 1)[1]
@@ -60,12 +51,20 @@ def container_info(containerId):
     return container
 
 
-def dockerddns(action, event, dnsserver, ttl):
-    update = dns.update.Update('i.bartsch.cl.', keyring=keyring)
-    update.replace(event['hostname'], ttl, 'A', event['ip'])
-    response = dns.query.tcp(update, dnsserver, timeout=10)
-    print(response)
-    print("hello")
+def dockerddns(action, event, dnsserver=config['dockerddns']['dnsserver'], ttl=60):
+    update = dns.update.Update(config['dockerddns']['zonename'], keyring=keyring, keyname=config['dockerddns']['keyname'])
+    if (action == 'start'):
+        logging.debug('Updating dns %s , setting %s.%s to %s' % (dnsserver, event['hostname'], config['dockerddns']['zonename'],event['ip']))
+        update.replace(event['hostname'], ttl, 'A', event['ip'])
+    elif (action == 'die' ):
+        logging.debug('Removing entry for %s.%s in %s' % (event['hostname'], config['dockerddns']['zonename'], dnsserver))
+        update.delete(event['hostname'])
+    try:
+      response = dns.query.tcp(update, dnsserver, timeout=10)
+    except dns.tsig.PeerBadKey:
+      logging.debug('Bad Key for DNS, Check your config files')
+      response = "BadKey"
+      pass
 
 
 def process():
@@ -75,20 +74,21 @@ def process():
         if event['Type'] == "container":
             if event['Action'] == 'start':
                 containerinfo = container_info(event['id'])
-                print(containerinfo)
                 print("Container %s is starting with hostname %s and ipAddr %s"
                       % (containerinfo['name'],
                          containerinfo['hostname'], containerinfo['ip']))
+                dockerddns(event['Action'],containerinfo)
+
             elif event['Action'] == 'die':
                 containerinfo = container_info(event['id'])
-                print(containerinfo)
                 print("Container %s is stopping %s" %
                       (containerinfo['name'],
                        containerinfo['hostname']))
+                dockerddns(event['Action'],containerinfo)
 
-print(startup())
+startup()
 try:
     process()
 except KeyboardInterrupt:
-    print("Bye")
+    logging.info('CTRL-C Pressed, GoodBye!')
     sys.exit()
