@@ -30,34 +30,34 @@ def startup():
     logging.debug('Check running containers and update DDNS')
     for container in client.containers():
         containerinfo = container_info(container["Id"])
-        dockerddns('start',containerinfo)
+        if containerinfo:
+            dockerddns('start',containerinfo)
 
 
 def container_info(containerId):
     container = {}
     inspect = client.inspect_container(containerId)
+    json.dumps(inspect)
     networkmode = str(inspect["HostConfig"]["NetworkMode"])
-    container['name'] = inspect["Name"].split('/', 1)[1]
-    if ((str(networkmode) != 'host') and 'container:' not in networkmode):
-        if (str(networkmode) != 'default'):
-            container['ip'] = inspect["NetworkSettings"][
-                "Networks"][networkmode]["IPAddress"]
-        else:
-            container['ip'] = inspect["NetworkSettings"][
-                "Networks"]["bridge"]["IPAddress"]
-    else:
-        container['ip'] = '0.0.0.0'
     container['hostname'] = inspect["Config"]["Hostname"]
+    container['name'] = inspect["Name"].split('/', 1)[1]
+    if ((str(networkmode) != 'host') and ('container:' not in networkmode)):
+        if (str(networkmode) != 'default'):
+            container['ip'] = inspect["NetworkSettings"]["Networks"][networkmode]["IPAddress"]
+        else:
+            container['ip'] = inspect["NetworkSettings"]["Networks"]["bridge"]["IPAddress"]
+    else:
+        return False
     return container
 
 
 def dockerddns(action, event, dnsserver=config['dockerddns']['dnsserver'], ttl=60):
     update = dns.update.Update(config['dockerddns']['zonename'], keyring=keyring, keyname=config['dockerddns']['keyname'])
-    if (action == 'start'):
-        logging.debug('Updating dns %s , setting %s.%s to %s' % (dnsserver, event['hostname'], config['dockerddns']['zonename'],event['ip']))
+    if (action == 'start' and event['ip'] != '0.0.0.0' ):
+        logging.debug('[%s] Updating dns %s , setting %s.%s to %s' % (event['name'], dnsserver, event['hostname'], config['dockerddns']['zonename'],event['ip']))
         update.replace(event['hostname'], ttl, 'A', event['ip'])
     elif (action == 'die' ):
-        logging.debug('Removing entry for %s.%s in %s' % (event['hostname'], config['dockerddns']['zonename'], dnsserver))
+        logging.debug('[%s] Removing entry for %s.%s in %s' % (event['name'], event['hostname'], config['dockerddns']['zonename'], dnsserver))
         update.delete(event['hostname'])
     try:
       response = dns.query.tcp(update, dnsserver, timeout=10)
@@ -74,17 +74,19 @@ def process():
         if event['Type'] == "container":
             if event['Action'] == 'start':
                 containerinfo = container_info(event['id'])
-                print("Container %s is starting with hostname %s and ipAddr %s"
+                if containerinfo:
+                    logging.debug("Container %s is starting with hostname %s and ipAddr %s"
                       % (containerinfo['name'],
                          containerinfo['hostname'], containerinfo['ip']))
-                dockerddns(event['Action'],containerinfo)
+                    dockerddns(event['Action'],containerinfo)
 
             elif event['Action'] == 'die':
                 containerinfo = container_info(event['id'])
-                print("Container %s is stopping %s" %
+                if containerinfo:
+                    logging.debug("Container %s is stopping %s" %
                       (containerinfo['name'],
                        containerinfo['hostname']))
-                dockerddns(event['Action'],containerinfo)
+                    dockerddns(event['Action'],containerinfo)
 
 startup()
 try:
